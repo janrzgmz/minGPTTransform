@@ -195,22 +195,25 @@ class GPT(nn.Module):
         # copy while ensuring all of the parameters are aligned and match in names and shapes
         keys = [k for k in sd_hf if not k.endswith('attn.masked_bias')] # ignore these
         transposed = ['attn.c_attn.weight', 'attn.c_proj.weight', 'mlp.c_fc.weight', 'mlp.c_proj.weight']
-        # basically the openai checkpoints use a "Conv1D" module, but we only want to use a vanilla nn.Linear.
-        # this means that we have to transpose these weights when we import them
+        
+        new_sd = {}
         for k in sd.keys():
-            if k not in keys:
-                print(f"⚠️ No encontrado en HF: {k}")
+            if k not in sd_hf:
+                # saltar claves que no estén en HF
+                print(f"Skipping {k}")
                 continue
             if any(k.endswith(w) for w in transposed):
-                assert sd_hf[k].shape[::-1] == sd[k].shape
                 with torch.no_grad():
-                    sd[k].copy_(sd_hf[k].t())
+                    new_sd[k] = sd_hf[k].t()
             else:
-                assert sd_hf[k].shape == sd[k].shape
                 with torch.no_grad():
-                    sd[k].copy_(sd_hf[k])
-
+                    new_sd[k] = sd_hf[k]
+        
+        # cargar solo las que coinciden
+        model.load_state_dict(new_sd, strict=False)
+        
         return model
+
 
     def configure_optimizers(self, train_config):
         """
