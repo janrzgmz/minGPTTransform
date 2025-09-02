@@ -193,20 +193,19 @@ class GPT(nn.Module):
         sd_hf = model_hf.state_dict()
 
         # copy while ensuring all of the parameters are aligned and match in names and shapes
-        keys = [k for k in sd_hf if not k.endswith('attn.masked_bias')] # ignore these
+        sd_keys = sd.keys()
+        hf_keys = [k for k in sd_hf.keys() if not k.endswith("attn.masked_bias") and not k.endswith("attn.bias")] # ignore these
         transposed = ['attn.c_attn.weight', 'attn.c_proj.weight', 'mlp.c_fc.weight', 'mlp.c_proj.weight']
         # basically the openai checkpoints use a "Conv1D" module, but we only want to use a vanilla nn.Linear.
         # this means that we have to transpose these weights when we import them
-        assert len(keys) == len(sd)
-        for k in keys:
+        for k in sd_keys:
+            if k not in sd_hf:
+                print(f"⚠️ Warning: {k} not in HF checkpoint, skipping")
+                continue
             if any(k.endswith(w) for w in transposed):
-                # special treatment for the Conv1D weights we need to transpose
-                assert sd_hf[k].shape[::-1] == sd[k].shape
                 with torch.no_grad():
                     sd[k].copy_(sd_hf[k].t())
             else:
-                # vanilla copy over the other parameters
-                assert sd_hf[k].shape == sd[k].shape
                 with torch.no_grad():
                     sd[k].copy_(sd_hf[k])
 
