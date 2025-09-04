@@ -317,13 +317,13 @@ class GPT(nn.Module):
             # if the sequence context is growing too long we must crop it at block_size
             idx_cond = idx if idx.size(1) <= self.block_size else idx[:, -self.block_size:]
             
-            device = idx.device
-            b, t = idx.size()
-            assert t <= self.block_size, f"Cannot forward sequence of length {t}, block size is only {self.block_size}"
-            pos = torch.arange(0, t, dtype=torch.long, device=device).unsqueeze(0) # shape (1, t)
+            device = idx_cond.device
+            b, t_cond = idx_cond.size()
+            assert t_cond <= self.block_size, f"Cannot forward sequence of length {t_cond}, block size is only {self.block_size}"
+            pos = torch.arange(0, t_cond, dtype=torch.long, device=device).unsqueeze(0) # shape (1, t_cond)
 
             # forward the GPT model itself
-            tok_emb = self.transformer.wte(idx) # token embeddings of shape (b, t, n_embd)
+            tok_emb = self.transformer.wte(idx_cond) # token embeddings of shape (b, t, n_embd)
             pos_emb = self.transformer.wpe(pos) # position embeddings of shape (1, t, n_embd)
             x = tok_emb + pos_emb
             x = special_conformal_transform(x, self.conformal_b)
@@ -352,3 +352,4 @@ class GPT(nn.Module):
 
 
         return idx
+
