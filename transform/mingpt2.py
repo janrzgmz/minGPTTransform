@@ -33,8 +33,8 @@ learning_rate = 3e-4
 max_iters = 20001
 batch_size = 1
 num_workers = 0
-model = GPT.from_pretrained(model_type)
 
+model = GPT.from_pretrained(model_type)
 model.to(device)
 model.eval()
 
@@ -55,7 +55,7 @@ def generate(prompt='', num_samples=10, steps=20, do_sample=True):
 generate(prompt='Artificial intelligence in modern age', num_samples=10, steps=20)
 
 # Load dataset
-dataset = load_dataset("wikimedia/wikipedia", "20231101.en")
+dataset = load_dataset("wikimedia/wikipedia", "20231101.es")
 split_dataset = dataset["train"].train_test_split(test_size=0.1, shuffle=True, seed=42) # 90% training, 10% validation
 train_dataset = split_dataset["train"]
 val_dataset = split_dataset["test"]
