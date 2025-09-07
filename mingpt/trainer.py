@@ -93,7 +93,7 @@ class Trainer:
             batch = [t.to(self.device) for t in batch]
             x, y = batch
 
-            with amp.autocast(dtype=torch.float16):
+            with amp.autocast("cuda", dtype=torch.float16):
                 logits, self.loss = model(x, y)
 
             # backprop and update the parameters
