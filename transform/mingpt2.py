@@ -55,7 +55,7 @@ def generate(prompt='', num_samples=10, steps=20, do_sample=True):
 generate(prompt='Artificial intelligence in modern age', num_samples=10, steps=20)
 
 # Load dataset
-dataset = load_dataset("wikimedia/wikipedia", "20231101.es")
+dataset = load_dataset("wikimedia/wikipedia", "20231101.en")
 split_dataset = dataset["train"].train_test_split(test_size=0.1, shuffle=True, seed=42) # 90% training, 10% validation
 train_dataset = split_dataset["train"]
 val_dataset = split_dataset["test"]
@@ -178,7 +178,7 @@ def batch_end_callback(trainer):
       train_losses_mingpt.append(train_loss)
       perplexity = math.exp(train_loss) if train_loss < 20 else float('inf')
       print(f"iter_dt {trainer.iter_dt * 1000:.2f}ms; iter {trainer.iter_num}: train loss {train_loss:.5f}, perplexity {perplexity:.2f}")
-    if trainer.iter_num % 2000 == 0:
+    if trainer.iter_num > 0 and trainer.iter_num % 2000 == 0:
       # val_loss and val_perplexity
       val_loss, val_ppl = evaluate(trainer.model, val_loader)
       print("-"*100)
@@ -217,7 +217,7 @@ def batch_end_callback_tce(trainer):
       train_losses_mingpt_tce.append(train_loss)
       perplexity = math.exp(train_loss) if train_loss < 20 else float('inf')
       print(f"iter_dt {trainer.iter_dt * 1000:.2f}ms; iter {trainer.iter_num}: train loss {train_loss:.5f}, perplexity {perplexity:.2f}")
-    if trainer.iter_num % 2000 == 0:
+    if trainer.iter_num > 0 and trainer.iter_num % 2000 == 0:
       # val_loss and val_perplexity
       val_loss, val_ppl = evaluate(trainer.model, val_loader)
       print("-"*100)
