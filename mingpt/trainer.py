@@ -99,6 +99,7 @@ class Trainer:
             # backprop and update the parameters
             model.zero_grad(set_to_none=True)
             self.scaler.scale(self.loss).backward()
+            self.scaler.unscale_(self.optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_norm_clip)
             self.scaler.step(self.optimizer)
             self.scaler.update()
