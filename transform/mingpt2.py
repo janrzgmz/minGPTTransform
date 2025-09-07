@@ -121,6 +121,39 @@ print('y:\n', y)
 print('a:\n', a)
 print('b:\n', b)
 
+val_loader = DataLoader(val_dataset, shuffle=False, pin_memory=True,  batch_size=batch_size, num_workers=num_workers)
+
+# Determine val_loss and perplexity during training
+def evaluate(model, loader):
+    was_training = model.training
+    model.eval()
+    losses = []
+    with torch.no_grad():
+        for x, y in loader:
+            x, y = x.to(device), y.to(device)
+            logits, loss = model(x, y)
+            losses.append(loss.item())
+    avg_loss = sum(losses) / len(losses)
+    ppl = math.exp(avg_loss) if avg_loss < 20 else float('inf')
+    if was_training:
+      model.train()
+    return avg_loss, ppl
+
+# Generate text during training
+def generate_with_model(model, tokenizer, prompt, steps=50, num_samples=1):
+    was_training = model.training
+    model.eval()
+    encoded_input = tokenizer(prompt, return_tensors='pt').to(device)
+    x = encoded_input['input_ids'].expand(num_samples, -1)
+    with torch.no_grad():
+        y = model.generate(x, max_new_tokens=steps, do_sample=True, top_k=40)
+    outputs = []
+    for i in range(num_samples):
+        outputs.append(tokenizer.decode(y[i].cpu().squeeze()))
+    if was_training:
+        model.train()
+    return outputs
+
 # create a GPT instance
 model_config = GPT.get_default_config()
 model_config.model_type = model_type
