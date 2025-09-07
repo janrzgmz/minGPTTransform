@@ -7,6 +7,7 @@ import time
 from collections import defaultdict
 
 import torch
+from torch.cuda.amp import autocast, GradScaler
 from torch.utils.data.dataloader import DataLoader
 from mingpt.utils import CfgNode as CN
 
@@ -64,6 +65,9 @@ class Trainer:
         # setup the optimizer
         self.optimizer = model.configure_optimizers(config)
 
+        # setup AMP scaler
+        self.scaler = GradScaler(enabled=True)
+
         # setup the dataloader
         train_loader = DataLoader(
             self.train_dataset,
@@ -89,14 +93,15 @@ class Trainer:
             batch = [t.to(self.device) for t in batch]
             x, y = batch
 
-            # forward the model
-            logits, self.loss = model(x, y)
+            with autocast(device_type="cuda", dtype=torch.float16):
+                logits, self.loss = model(x, y)
 
             # backprop and update the parameters
             model.zero_grad(set_to_none=True)
-            self.loss.backward()
+            self.scaler.scale(self.loss).backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_norm_clip)
-            self.optimizer.step()
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
 
             self.trigger_callbacks('on_batch_end')
             self.iter_num += 1
