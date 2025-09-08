@@ -228,7 +228,7 @@ trainer_tce = Trainer(train_config, model_tce, train_dataset)
 
 train_losses_mingpt_tce = []
 
-def batch_end_callback(trainer):
+def batch_end_callback_tce(trainer):
     log_interval_updates = 100
     val_interval_updates = 1000
 
@@ -238,18 +238,18 @@ def batch_end_callback(trainer):
     if (trainer.iter_num + 1) % trainer.config.gradient_accumulation_steps == 0:
         if trainer.iter_num % log_interval == 0:
             train_loss = trainer.loss.item()
-            train_losses_mingpt.append(train_loss)
+            train_losses_mingpt_tce.append(train_loss)
             perplexity = math.exp(train_loss) if train_loss < 20 else float('inf')
             print(f"iter_dt {trainer.iter_dt * 1000:.2f}ms; iter {trainer.iter_num}: train loss {train_loss:.5f}, perplexity {perplexity:.2f}")
         if trainer.iter_num > 0 and trainer.iter_num % val_interval == 0:
             # val_loss and val_perplexity
             val_loss, val_ppl = evaluate(trainer.model, val_loader_small)
             print("-"*100)
-            print(f"[Validation, minGPT] iter {trainer.iter_num}: loss {val_loss:.5f}, perplexity {val_ppl:.2f}")
+            print(f"[Validation, minGPT_tce] iter {trainer.iter_num}: loss {val_loss:.5f}, perplexity {val_ppl:.2f}")
             # generate text
             prompt = 'Artificial intelligence in modern age'
             samples = generate_with_model(trainer.model, tokenizer, prompt, steps=50, num_samples=1)
-            print(f"[Text generation, minGPT] iter {trainer.iter_num}, prompt: {prompt}")
+            print(f"[Text generation, minGPT_tce] iter {trainer.iter_num}, prompt: {prompt}")
             print('Generation:\n', samples[0])
             print("-"*100)
 

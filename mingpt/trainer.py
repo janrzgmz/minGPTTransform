@@ -100,11 +100,13 @@ class Trainer:
             with amp.autocast("cuda", dtype=torch.float16):
                 logits, loss = model(x, y)
 
+            self.loss = loss.detach()
+
             if torch.isnan(loss) or torch.isinf(loss):
                 print(f"NaN detected at iter {self.iter_num}")
                 break
 
-            # normalize loss
+            # accumulate gradients
             loss_scaled = loss / accumulation_steps
             self.scaler.scale(loss_scaled).backward()
             running_loss += loss.item()
@@ -116,7 +118,7 @@ class Trainer:
                 self.scaler.update()
                 self.optimizer.zero_grad(set_to_none=True)
 
-                self.loss = running_loss / accumulation_steps
+                self.loss = torch.tensor(running_loss / accumulation_steps, device=self.device)
                 running_loss = 0.0
             
 

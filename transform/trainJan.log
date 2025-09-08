@@ -73,3 +73,5 @@ b:
  tensor([ 7378, 28238,   318,  ...,   373,   925,   257])
 number of parameters: 354.82M
 running on device cuda
+number of parameters: 354.82M
+running on device cuda
