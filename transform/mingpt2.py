@@ -190,7 +190,7 @@ def batch_end_callback(trainer):
       print("-"*100)
       print(f"[Validation, minGPT] iter {trainer.iter_num}: loss {val_loss:.5f}, perplexity {val_ppl:.2f}")
       # generate text
-      prompt = "La inteligencia artificial en el mundo moderno"
+      prompt = 'Artificial intelligence in modern age'
       samples = generate_with_model(trainer.model, tokenizer, prompt, steps=50, num_samples=1)
       print(f"[Text generation, minGPT] iter {trainer.iter_num}, prompt: {prompt}")
       print('Generation:\n', samples[0])
@@ -229,7 +229,7 @@ def batch_end_callback_tce(trainer):
       print("-"*100)
       print(f"[Validation, minGPT_tce] iter {trainer.iter_num}: loss {val_loss:.5f}, perplexity {val_ppl:.2f}")
       # generate text
-      prompt = "La inteligencia artificial en el mundo moderno"
+      prompt = 'Artificial intelligence in modern age'
       samples = generate_with_model(trainer.model, tokenizer, prompt, steps=50, num_samples=1)
       print(f"[Text generation, minGPT_tce] iter {trainer.iter_num}, prompt: {prompt}")
       print('Generation:\n', samples[0])
