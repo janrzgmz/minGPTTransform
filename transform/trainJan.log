@@ -1,0 +1,75 @@
+number of parameters: 354.82M
+⚠️ Warning: transformer.h.0.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.1.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.2.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.3.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.4.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.5.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.6.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.7.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.8.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.9.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.10.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.11.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.12.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.13.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.14.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.15.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.16.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.17.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.18.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.19.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.20.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.21.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.22.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.23.attn.bias not in HF checkpoint, skipping
+--------------------------------------------------------------------------------
+Artificial intelligence in modern age
+
+
+The most notable application of artificial intelligence is in the field of robotics, which is now used
+--------------------------------------------------------------------------------
+Artificial intelligence in modern age is still mostly new and very difficult. To be the first one to be able to learn a language
+--------------------------------------------------------------------------------
+Artificial intelligence in modern age. Artificial Intelligence in modern age.
+
+For an overview, read this article from the MIT Technology
+--------------------------------------------------------------------------------
+Artificial intelligence in modern age has come about largely through the use of complex algorithms developed by computers.
+
+In 2012, IBM
+--------------------------------------------------------------------------------
+Artificial intelligence in modern age."
+
+In a new video, IBM announced Watson, an Artificial Neural Network, that can outper
+--------------------------------------------------------------------------------
+Artificial intelligence in modern age has been a huge topic. In this article (video), DeepMind's Jérôme Champ
+--------------------------------------------------------------------------------
+Artificial intelligence in modern age," a science at the intersection of machine and human intelligence. At times it becomes a social phenomena,
+--------------------------------------------------------------------------------
+Artificial intelligence in modern age
+
+The most prominent example of AI has been DeepMind, which created the AlphaGo computer program
+--------------------------------------------------------------------------------
+Artificial intelligence in modern age
+
+There are many scenarios where you have to think outside the box and combine different artificial intelligence systems
+--------------------------------------------------------------------------------
+Artificial intelligence in modern age – from robots to artificial intelligence –
+
+The question is, what can computers and artificial intelligence learn
+train_dataset length:  5767032
+val_dataset length:  640782
+vocab_size:  50257
+train_dataset example:
+ In photography, solarization is the effect of tone reversal observed in cases of extreme overexposure of the photographic film in the camera. Most likely, the effect was first observed in scenery photographs including the sun. The sun, instead of being the whitest spot in the image, turned black or grey. For instance, Minor White's photograph of a winter scene, The Black Sun 1955, was a result of the shutter of his camera freezing in the open position, producing severe overexposure. Ansel Adams 
+x:
+ tensor([  818, 16223,    11,  ...,    12, 10760,   618])
+y:
+ tensor([16223,    11,  6591,  ..., 10760,   618,  9759])
+a:
+ tensor([   39,  7378, 28238,  ...,   290,   373,   925])
+b:
+ tensor([ 7378, 28238,   318,  ...,   373,   925,   257])
+number of parameters: 354.82M
+running on device cuda

@@ -33,7 +33,7 @@ device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 block_size = 1024
 learning_rate = 3e-4
 max_iters = 50001
-batch_size = 8
+batch_size = 4
 num_workers = 0
 gradient_accumulation_steps = 4
 
