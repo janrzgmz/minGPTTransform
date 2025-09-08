@@ -181,12 +181,12 @@ trainer = Trainer(train_config, model, train_dataset)
 train_losses_mingpt = []
 
 def batch_end_callback(trainer):
-    if trainer.iter_num % 400 == 0:
+    if trainer.iter_num % 399 == 0:
       train_loss = trainer.loss.item()
       train_losses_mingpt.append(train_loss)
       perplexity = math.exp(train_loss) if train_loss < 20 else float('inf')
       print(f"iter_dt {trainer.iter_dt * 1000:.2f}ms; iter {trainer.iter_num}: train loss {train_loss:.5f}, perplexity {perplexity:.2f}")
-    if trainer.iter_num > 0 and trainer.iter_num % 4000 == 0:
+    if trainer.iter_num > 0 and trainer.iter_num % 3999 == 0:
       # val_loss and val_perplexity
       val_loss, val_ppl = evaluate(trainer.model, val_loader_small)
       print("-"*100)
@@ -221,12 +221,12 @@ trainer_tce = Trainer(train_config, model_tce, train_dataset)
 train_losses_mingpt_tce = []
 
 def batch_end_callback_tce(trainer):
-    if trainer.iter_num % 400 == 0:
+    if trainer.iter_num % 399 == 0:
       train_loss = trainer.loss.item()
       train_losses_mingpt_tce.append(train_loss)
       perplexity = math.exp(train_loss) if train_loss < 20 else float('inf')
       print(f"iter_dt {trainer.iter_dt * 1000:.2f}ms; iter {trainer.iter_num}: train loss {train_loss:.5f}, perplexity {perplexity:.2f}")
-    if trainer.iter_num > 0 and trainer.iter_num % 4000 == 0:
+    if trainer.iter_num > 0 and trainer.iter_num % 3999 == 0:
       # val_loss and val_perplexity
       val_loss, val_ppl = evaluate(trainer.model, val_loader_small)
       print("-"*100)
