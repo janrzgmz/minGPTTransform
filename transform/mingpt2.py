@@ -32,9 +32,10 @@ device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
 block_size = 1024
 learning_rate = 3e-4
-max_iters = 20001
-batch_size = 1
+max_iters = 50001
+batch_size = 8
 num_workers = 0
+gradient_accumulation_steps = 4
 
 model = GPT.from_pretrained(model_type)
 model.to(device)
@@ -173,6 +174,7 @@ train_config.learning_rate = learning_rate
 train_config.max_iters = max_iters
 train_config.batch_size = batch_size
 train_config.num_workers = num_workers
+train_config.gradient_accumulation_steps = gradient_accumulation_steps
 
 trainer = Trainer(train_config, model, train_dataset)
 
@@ -212,6 +214,7 @@ train_config.learning_rate = learning_rate
 train_config.max_iters = max_iters
 train_config.batch_size = batch_size
 train_config.num_workers = num_workers
+train_config.gradient_accumulation_steps = gradient_accumulation_steps
 
 trainer_tce = Trainer(train_config, model_tce, train_dataset)
 

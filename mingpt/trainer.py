@@ -27,6 +27,7 @@ class Trainer:
         C.betas = (0.9, 0.95)
         C.weight_decay = 0.1 # only applied on matmul weights
         C.grad_norm_clip = 1.0
+        C.gradient_accumulation_steps = 1
         return C
 
     def __init__(self, config, model, train_dataset):
@@ -82,8 +83,11 @@ class Trainer:
         self.iter_num = 0
         self.iter_time = time.time()
         data_iter = iter(train_loader)
-        while True:
 
+        accumulation_steps = config.gradient_accumulation_steps
+        running_loss = 0.0
+
+        while True:
             # fetch the next batch (x, y) and re-init iterator if needed
             try:
                 batch = next(data_iter)
@@ -94,15 +98,27 @@ class Trainer:
             x, y = batch
 
             with amp.autocast("cuda", dtype=torch.float16):
-                logits, self.loss = model(x, y)
+                logits, loss = model(x, y)
 
-            # backprop and update the parameters
-            model.zero_grad(set_to_none=True)
-            self.scaler.scale(self.loss).backward()
-            self.scaler.unscale_(self.optimizer)
-            torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_norm_clip)
-            self.scaler.step(self.optimizer)
-            self.scaler.update()
+            if torch.isnan(loss) or torch.isinf(loss):
+                print(f"NaN detected at iter {self.iter_num}")
+                break
+
+            # normalize loss
+            loss_scaled = loss / accumulation_steps
+            self.scaler.scale(loss_scaled).backward()
+            running_loss += loss.item()
+
+            if (self.iter_num + 1) % accumulation_steps == 0:
+                self.scaler.unscale_(self.optimizer)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_norm_clip)
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
+                self.optimizer.zero_grad(set_to_none=True)
+
+                self.loss = running_loss / accumulation_steps
+                running_loss = 0.0
+            
 
             self.trigger_callbacks('on_batch_end')
             self.iter_num += 1
