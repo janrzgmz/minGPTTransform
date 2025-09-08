@@ -3,6 +3,7 @@ os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
 import torch
 from torch.utils.data import Dataset
+from torch.utils.data import Subset
 from torch.utils.data.dataloader import DataLoader
 
 from datasets import load_dataset
@@ -17,6 +18,7 @@ from itertools import chain
 
 import math
 import matplotlib.pyplot as plt
+import random
 
 # Seeds & Hyperparameters
 set_seed(3407)
@@ -121,7 +123,11 @@ print('y:\n', y)
 print('a:\n', a)
 print('b:\n', b)
 
+indices = random.sample(range(len(val_dataset)), 5000)
+val_subset = Subset(val_dataset, indices)
+
 val_loader = DataLoader(val_dataset, shuffle=False, pin_memory=True,  batch_size=batch_size, num_workers=num_workers)
+val_loader_small = DataLoader(val_subset, shuffle=False, pin_memory=True,  batch_size=batch_size, num_workers=num_workers)
 
 # Determine val_loss and perplexity during training
 def evaluate(model, loader):
@@ -180,7 +186,7 @@ def batch_end_callback(trainer):
       print(f"iter_dt {trainer.iter_dt * 1000:.2f}ms; iter {trainer.iter_num}: train loss {train_loss:.5f}, perplexity {perplexity:.2f}")
     if trainer.iter_num > 0 and trainer.iter_num % 2000 == 0:
       # val_loss and val_perplexity
-      val_loss, val_ppl = evaluate(trainer.model, val_loader)
+      val_loss, val_ppl = evaluate(trainer.model, val_loader_small)
       print("-"*100)
       print(f"[Validation, minGPT] iter {trainer.iter_num}: loss {val_loss:.5f}, perplexity {val_ppl:.2f}")
       # generate text
@@ -219,7 +225,7 @@ def batch_end_callback_tce(trainer):
       print(f"iter_dt {trainer.iter_dt * 1000:.2f}ms; iter {trainer.iter_num}: train loss {train_loss:.5f}, perplexity {perplexity:.2f}")
     if trainer.iter_num > 0 and trainer.iter_num % 2000 == 0:
       # val_loss and val_perplexity
-      val_loss, val_ppl = evaluate(trainer.model, val_loader)
+      val_loss, val_ppl = evaluate(trainer.model, val_loader_small)
       print("-"*100)
       print(f"[Validation, minGPT_tce] iter {trainer.iter_num}: loss {val_loss:.5f}, perplexity {val_ppl:.2f}")
       # generate text
