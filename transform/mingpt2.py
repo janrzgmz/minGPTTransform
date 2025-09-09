@@ -19,6 +19,8 @@ from itertools import chain
 import math
 import matplotlib.pyplot as plt
 import random
+import glob
+import re
 
 # Seeds & Hyperparameters
 set_seed(3407)
@@ -37,9 +39,9 @@ batch_size = 2
 num_workers = 0
 gradient_accumulation_steps = 4
 
-model = GPT.from_pretrained(model_type)
-model.to(device)
-model.eval()
+pretrained_model = GPT.from_pretrained(model_type)
+pretrained_model.to(device)
+pretrained_model.eval()
 
 # Example
 def generate(prompt='', num_samples=10, steps=20, do_sample=True):
@@ -49,7 +51,7 @@ def generate(prompt='', num_samples=10, steps=20, do_sample=True):
     encoded_input = tokenizer(prompt, return_tensors='pt').to(device)
     x = encoded_input['input_ids']
     x = x.expand(num_samples, -1)
-    y = model.generate(x, max_new_tokens=steps, do_sample=do_sample, top_k=40)
+    y = pretrained_model.generate(x, max_new_tokens=steps, do_sample=do_sample, top_k=40)
     for i in range(num_samples):
         out = tokenizer.decode(y[i].cpu().squeeze())
         print('-'*80)
@@ -161,6 +163,53 @@ def generate_with_model(model, tokenizer, prompt, steps=50, num_samples=1):
         model.train()
     return outputs
 
+# Load checkpoints
+def parse_iter_from_ckpt(path):
+    """Extract the iteration number from a checkpoint with regex."""
+    match = re.search(r"ckpt_iter(\d+)\.pt", os.path.basename(path))
+    return int(match.group(1)) if match else -1
+
+def save_checkpoint(trainer, ckpt_dir, k_keep=3):
+    """Save a checkpoint and keep only the last k_keep."""
+    iter_num = trainer.iter_num
+    ckpt_path = os.path.join(ckpt_dir, f"ckpt_iter{iter_num}.pt")
+
+    # Save
+    torch.save({
+        'iter_num': iter_num,
+        'model_state_dict': trainer.model.state_dict(),
+        'optimizer_state_dict': trainer.optimizer.state_dict(),
+    }, ckpt_path)
+    print(f"[Checkpoint] Saved at {ckpt_path}")
+
+    # Delete old
+    ckpts = glob.glob(os.path.join(ckpt_dir, "ckpt_iter*.pt"))
+    ckpts_sorted = sorted(ckpts, key=parse_iter_from_ckpt)
+    if len(ckpts_sorted) > k_keep:
+        for ckpt_to_remove in ckpts_sorted[:-k_keep]:
+            os.remove(ckpt_to_remove)
+            print(f"[Checkpoint] Removed old checkpoint {ckpt_to_remove}")
+    
+def get_last_checkpoint(ckpt_dir):
+    """Returns the most recent checkpoint within a directory."""
+    ckpts = glob.glob(os.path.join(ckpt_dir, "ckpt_iter*.pt"))
+    if not ckpts:
+        return None
+    ckpts_sorted = sorted(ckpts, key=parse_iter_from_ckpt)
+    return ckpts_sorted[-1]
+    
+def load_checkpoint(trainer, checkpoint_path, device):
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+    trainer.model.load_state_dict(checkpoint['model_state_dict'])
+
+    trainer.optimizer = trainer.model.configure_optimizers(trainer.config)
+    trainer.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+
+    trainer.iter_num = checkpoint['iter_num']
+    print(f"[Checkpoint] Loaded from {checkpoint_path}, iter {trainer.iter_num}")
+    return trainer
+
+
 # create a GPT instance
 model_config = GPT.get_default_config()
 model_config.model_type = model_type
@@ -179,6 +228,11 @@ train_config.gradient_accumulation_steps = gradient_accumulation_steps
 trainer = Trainer(train_config, model, train_dataset)
 
 train_losses_mingpt = []
+
+checkpoint_dir_gpt = "checkpoints/minGPT"
+checkpoint_dir_gpt_tce = "checkpoints/minGPT_tce"
+os.makedirs(checkpoint_dir_gpt, exist_ok=True)
+os.makedirs(checkpoint_dir_gpt_tce, exist_ok=True)
 
 def batch_end_callback(trainer):
     log_interval_updates = 100
@@ -204,8 +258,14 @@ def batch_end_callback(trainer):
             print(f"[Text generation, minGPT] iter {trainer.iter_num}, prompt: {prompt}")
             print('Generation:\n', samples[0])
             print("-"*100)
+            # Save checkpoint
+            save_checkpoint(trainer, checkpoint_dir_gpt, k_keep=3)
 
 trainer.set_callback('on_batch_end', batch_end_callback)
+
+last_ckpt_gpt = get_last_checkpoint(checkpoint_dir_gpt)
+if last_ckpt_gpt:
+    load_checkpoint(trainer, last_ckpt_gpt, device)
 
 trainer.run()
 
@@ -252,8 +312,14 @@ def batch_end_callback_tce(trainer):
             print(f"[Text generation, minGPT_tce] iter {trainer.iter_num}, prompt: {prompt}")
             print('Generation:\n', samples[0])
             print("-"*100)
+            # Save checkpoint
+            save_checkpoint(trainer, checkpoint_dir_gpt_tce, k_keep=3)
 
 trainer_tce.set_callback('on_batch_end', batch_end_callback_tce)
+
+last_ckpt_tce = get_last_checkpoint(checkpoint_dir_gpt_tce)
+if last_ckpt_tce:
+    load_checkpoint(trainer_tce, last_ckpt_tce, device)
 
 trainer_tce.run()
 

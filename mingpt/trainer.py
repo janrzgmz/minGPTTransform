@@ -66,9 +66,6 @@ class Trainer:
         # setup the optimizer
         self.optimizer = model.configure_optimizers(config)
 
-        # setup AMP scaler
-        self.scaler = amp.GradScaler(device="cuda", enabled=True)
-
         # setup the dataloader
         train_loader = DataLoader(
             self.train_dataset,
@@ -97,7 +94,7 @@ class Trainer:
             batch = [t.to(self.device) for t in batch]
             x, y = batch
 
-            with amp.autocast("cuda", dtype=torch.float16):
+            with amp.autocast("cuda", dtype=torch.bfloat16):
                 logits, loss = model(x, y)
 
             self.loss = loss.detach()
@@ -108,14 +105,12 @@ class Trainer:
 
             # accumulate gradients
             loss_scaled = loss / accumulation_steps
-            self.scaler.scale(loss_scaled).backward()
+            loss_scaled.backward()
             running_loss += loss.item()
 
             if (self.iter_num + 1) % accumulation_steps == 0:
-                self.scaler.unscale_(self.optimizer)
                 torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_norm_clip)
-                self.scaler.step(self.optimizer)
-                self.scaler.update()
+                self.optimizer.step()
                 self.optimizer.zero_grad(set_to_none=True)
 
                 self.loss = torch.tensor(running_loss / accumulation_steps, device=self.device)
