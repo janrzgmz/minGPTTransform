@@ -58,3 +58,20 @@ There are many scenarios where you have to think outside the box and combine dif
 Artificial intelligence in modern age – from robots to artificial intelligence –
 
 The question is, what can computers and artificial intelligence learn
+train_dataset length:  5767032
+val_dataset length:  640782
+vocab_size:  50257
+train_dataset example:
+ In photography, solarization is the effect of tone reversal observed in cases of extreme overexposure of the photographic film in the camera. Most likely, the effect was first observed in scenery photographs including the sun. The sun, instead of being the whitest spot in the image, turned black or grey. For instance, Minor White's photograph of a winter scene, The Black Sun 1955, was a result of the shutter of his camera freezing in the open position, producing severe overexposure. Ansel Adams 
+x:
+ tensor([  818, 16223,    11,  ...,    12, 10760,   618])
+y:
+ tensor([16223,    11,  6591,  ..., 10760,   618,  9759])
+a:
+ tensor([   39,  7378, 28238,  ...,   290,   373,   925])
+b:
+ tensor([ 7378, 28238,   318,  ...,   373,   925,   257])
+number of parameters: 354.82M
+running on device cuda
+number of parameters: 354.82M
+running on device cuda

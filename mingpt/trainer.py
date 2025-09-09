@@ -47,6 +47,7 @@ class Trainer:
 
         # variables that will be assigned to trainer class later for logging and etc
         self.iter_num = 0
+        self.step_num = 0
         self.iter_time = 0.0
         self.iter_dt = 0.0
 
@@ -66,10 +67,9 @@ class Trainer:
         # setup the optimizer
         self.optimizer = model.configure_optimizers(config)
 
-        # setup the dataloader
         train_loader = DataLoader(
             self.train_dataset,
-            sampler=torch.utils.data.RandomSampler(self.train_dataset, replacement=True, num_samples=int(1e10)),
+            sampler=torch.utils.data.RandomSampler(self.train_dataset, replacement=False, generator=torch.Generator().manual_seed(3407)),
             shuffle=False,
             pin_memory=True,
             batch_size=config.batch_size,
@@ -78,11 +78,14 @@ class Trainer:
 
         model.train()
         self.iter_num = 0
+        self.step_num = 0
         self.iter_time = time.time()
         data_iter = iter(train_loader)
 
         accumulation_steps = config.gradient_accumulation_steps
         running_loss = 0.0
+
+        self.optimizer.zero_grad(set_to_none=True)
 
         while True:
             # fetch the next batch (x, y) and re-init iterator if needed
@@ -94,7 +97,13 @@ class Trainer:
             batch = [t.to(self.device) for t in batch]
             x, y = batch
 
-            with amp.autocast("cuda", dtype=torch.bfloat16):
+            # Safe autocast (GPU bf16, CPU fp32)
+            if str(self.device).startswith('cuda'):
+                ctx = amp.autocast(device_type='cuda', dtype=torch.bfloat16)
+            else:
+                ctx = amp.autocast(device_type='cpu', dtype=torch.float32)
+            
+            with ctx:
                 logits, loss = model(x, y)
 
             self.loss = loss.detach()
@@ -104,10 +113,10 @@ class Trainer:
                 break
 
             # accumulate gradients
-            loss_scaled = loss / accumulation_steps
-            loss_scaled.backward()
+            (loss / accumulation_steps).backward()
             running_loss += loss.item()
-
+            
+            just_stepped = False
             if (self.iter_num + 1) % accumulation_steps == 0:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_norm_clip)
                 self.optimizer.step()
@@ -115,9 +124,15 @@ class Trainer:
 
                 self.loss = torch.tensor(running_loss / accumulation_steps, device=self.device)
                 running_loss = 0.0
+                
+                self.step_num += 1
+                just_stepped = True
             
+            if just_stepped:
+                self.trigger_callbacks('on_step_end')
+            else:
+                self.trigger_callbacks('on_batch_end')
 
-            self.trigger_callbacks('on_batch_end')
             self.iter_num += 1
             tnow = time.time()
             self.iter_dt = tnow - self.iter_time

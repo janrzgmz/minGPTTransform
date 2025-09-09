@@ -34,7 +34,7 @@ device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
 block_size = 1024
 learning_rate = 3e-4
-max_iters = 40001
+max_iters = 40000
 batch_size = 1
 num_workers = 0
 gradient_accumulation_steps = 4
@@ -67,8 +67,7 @@ val_dataset = split_dataset["test"]
 
 # Load tokenizer
 tokenizer = GPT2Tokenizer.from_pretrained(model_type)
-if tokenizer.eos_token is None:
-    tokenizer.add_special_tokens({'eos_token': ''})
+vocab_size = len(tokenizer)
 
 print('train_dataset length: ', len(train_dataset))
 print('val_dataset length: ', len(val_dataset))
@@ -126,7 +125,8 @@ print('y:\n', y)
 print('a:\n', a)
 print('b:\n', b)
 
-indices = random.sample(range(len(val_dataset)), 5000)
+rng = random.Random(3407) 
+indices = rng.sample(range(len(val_dataset)), 2000)
 val_subset = Subset(val_dataset, indices)
 
 val_loader = DataLoader(val_dataset, shuffle=False, pin_memory=True,  batch_size=batch_size, num_workers=num_workers)
@@ -164,56 +164,79 @@ def generate_with_model(model, tokenizer, prompt, steps=50, num_samples=1):
     return outputs
 
 # Load checkpoints
-def parse_iter_from_ckpt(path):
-    """Extract the iteration number from a checkpoint with regex."""
-    match = re.search(r"ckpt_iter(\d+)\.pt", os.path.basename(path))
+def parse_step_from_ckpt(path):
+    """Extract the step number from a checkpoint filename like ckpt_step123.pt"""
+    match = re.search(r"ckpt_step(\d+)\.pt", os.path.basename(path))
     return int(match.group(1)) if match else -1
 
-def save_checkpoint(trainer, ckpt_dir, k_keep=3):
-    """Save a checkpoint and keep only the last k_keep."""
-    iter_num = trainer.iter_num
-    ckpt_path = os.path.join(ckpt_dir, f"ckpt_iter{iter_num}.pt")
+def save_checkpoint(trainer, ckpt_dir, train_losses, train_steps, best_val_loss=None, current_val_loss=None, k_keep=3):
+    """Save a checkpoint with model/optimizer/config + training history.
+       Keeps the last k_keep checkpoints, and optionally updates best_model.pt.
+    """
+    os.makedirs(ckpt_dir, exist_ok=True)
+    step_num = trainer.step_num
+    ckpt_path = os.path.join(ckpt_dir, f"ckpt_step{step_num}.pt")
 
-    # Save
+    # Save everything
     torch.save({
-        'iter_num': iter_num,
+        'config': trainer.config,  # for reproducibility
+        'step_num': step_num,
+        'iter_num': trainer.iter_num,
         'model_state_dict': trainer.model.state_dict(),
         'optimizer_state_dict': trainer.optimizer.state_dict(),
+        'train_losses': train_losses,
+        'train_steps': train_steps,
     }, ckpt_path)
     print(f"[Checkpoint] Saved at {ckpt_path}")
 
-    # Delete old
-    ckpts = glob.glob(os.path.join(ckpt_dir, "ckpt_iter*.pt"))
-    ckpts_sorted = sorted(ckpts, key=parse_iter_from_ckpt)
+    # Save best model (according to validation)
+    if current_val_loss is not None:
+        if best_val_loss is None or current_val_loss < best_val_loss:
+            best_path = os.path.join(ckpt_dir, "best_model.pt")
+            torch.save(trainer.model.state_dict(), best_path)
+            print(f"[Checkpoint] New best model saved at {best_path} (val_loss={current_val_loss:.5f})")
+            best_val_loss = current_val_loss
+
+    # Keep only the last k_keep
+    ckpts = glob.glob(os.path.join(ckpt_dir, "ckpt_step*.pt"))
+    ckpts_sorted = sorted(ckpts, key=parse_step_from_ckpt)
     if len(ckpts_sorted) > k_keep:
         for ckpt_to_remove in ckpts_sorted[:-k_keep]:
             os.remove(ckpt_to_remove)
             print(f"[Checkpoint] Removed old checkpoint {ckpt_to_remove}")
-    
+
+    return best_val_loss
+
 def get_last_checkpoint(ckpt_dir):
     """Returns the most recent checkpoint within a directory."""
-    ckpts = glob.glob(os.path.join(ckpt_dir, "ckpt_iter*.pt"))
+    ckpts = glob.glob(os.path.join(ckpt_dir, "ckpt_step*.pt"))
     if not ckpts:
         return None
-    ckpts_sorted = sorted(ckpts, key=parse_iter_from_ckpt)
+    ckpts_sorted = sorted(ckpts, key=parse_step_from_ckpt)
     return ckpts_sorted[-1]
-    
-def load_checkpoint(trainer, checkpoint_path, device):
-    checkpoint = torch.load(checkpoint_path, map_location=device)
-    trainer.model.load_state_dict(checkpoint['model_state_dict'])
 
+def load_checkpoint(trainer, checkpoint_path, device):
+    """Load a checkpoint and restore model, optimizer, step/iter counters, and training history if available."""
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+
+    trainer.model.load_state_dict(checkpoint['model_state_dict'])
     trainer.optimizer = trainer.model.configure_optimizers(trainer.config)
     trainer.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
-    trainer.iter_num = checkpoint['iter_num']
-    print(f"[Checkpoint] Loaded from {checkpoint_path}, iter {trainer.iter_num}")
-    return trainer
+    trainer.iter_num = checkpoint.get('iter_num', 0)
+    trainer.step_num = checkpoint.get('step_num', 0)
+
+    train_losses = checkpoint.get('train_losses', [])
+    train_steps = checkpoint.get('train_steps', [])
+
+    print(f"[Checkpoint] Loaded from {checkpoint_path}, step {trainer.step_num}, iter {trainer.iter_num}")
+    return trainer, train_losses, train_steps
 
 
 # create a GPT instance
 model_config = GPT.get_default_config()
 model_config.model_type = model_type
-model_config.vocab_size = tokenizer.vocab_size
+model_config.vocab_size = vocab_size
 model_config.block_size = block_size
 model = GPT(model_config)
 
@@ -228,51 +251,64 @@ train_config.gradient_accumulation_steps = gradient_accumulation_steps
 trainer = Trainer(train_config, model, train_dataset)
 
 train_losses_mingpt = []
-
+train_steps_mingpt = []
 checkpoint_dir_gpt = "checkpoints/minGPT"
-checkpoint_dir_gpt_tce = "checkpoints/minGPT_tce"
 os.makedirs(checkpoint_dir_gpt, exist_ok=True)
-os.makedirs(checkpoint_dir_gpt_tce, exist_ok=True)
+best_val_loss = None
 
-def batch_end_callback(trainer):
-    log_interval_updates = 100
-    val_interval_updates = 1000
+def batch_end_callback_step(trainer):
+    global best_val_loss
 
-    log_interval = log_interval_updates * trainer.config.gradient_accumulation_steps
-    val_interval = val_interval_updates * trainer.config.gradient_accumulation_steps
+    # intervals measured in EFFECTIVE STEPS (updates)
+    log_interval_steps = 25
+    val_interval_steps = 250
 
-    if (trainer.iter_num + 1) % trainer.config.gradient_accumulation_steps == 0:
-        if trainer.iter_num % log_interval == 0:
-            train_loss = trainer.loss.item()
-            train_losses_mingpt.append(train_loss)
-            perplexity = math.exp(train_loss) if train_loss < 20 else float('inf')
-            print(f"iter_dt {trainer.iter_dt * 1000:.2f}ms; iter {trainer.iter_num}: train loss {train_loss:.5f}, perplexity {perplexity:.2f}")
-        if trainer.iter_num > 0 and trainer.iter_num % val_interval == 0:
-            # val_loss and val_perplexity
-            val_loss, val_ppl = evaluate(trainer.model, val_loader_small)
-            print("-"*100)
-            print(f"[Validation, minGPT] iter {trainer.iter_num}: loss {val_loss:.5f}, perplexity {val_ppl:.2f}")
-            # generate text
-            prompt = 'Artificial intelligence in modern age'
-            samples = generate_with_model(trainer.model, tokenizer, prompt, steps=50, num_samples=1)
-            print(f"[Text generation, minGPT] iter {trainer.iter_num}, prompt: {prompt}")
-            print('Generation:\n', samples[0])
-            print("-"*100)
-            # Save checkpoint
-            save_checkpoint(trainer, checkpoint_dir_gpt, k_keep=3)
+    # LOG
+    if trainer.step_num % log_interval_steps == 0:
+        tr_loss = float(trainer.loss.item())
+        ppl = math.exp(trainer.loss.item()) if tr_loss < 20 else float('inf')
+        print(f"[minGPT] step {trainer.step_num} | micro_iter {trainer.iter_num} | "
+              f"train loss {tr_loss:.5f} | ppl {ppl:.2f} | dt {trainer.iter_dt*1000:.1f}ms")
+        train_losses_mingpt.append(tr_loss)
+        train_steps_mingpt.append(trainer.step_num)
 
-trainer.set_callback('on_batch_end', batch_end_callback)
+    # VALID + CKPT + (optional) generation
+    if trainer.step_num > 0 and trainer.step_num % val_interval_steps == 0:
+        vloss, vppl = evaluate(trainer.model, val_loader_small)
+        print("-" * 100)
+        print(f"[Validation, minGPT] step {trainer.step_num}: loss {vloss:.5f}, ppl {vppl:.2f}")
+        # Short sample generation (optional)
+        prompt = 'Artificial intelligence in modern age'
+        sample = generate_with_model(trainer.model, tokenizer, prompt, steps=50, num_samples=1)[0]
+        print(f"[Text generation, minGPT] step {trainer.step_num} | prompt: {prompt}\n{sample}")
+        print("-" * 100)
+        best_val_loss = save_checkpoint(
+            trainer,
+            checkpoint_dir_gpt,
+            train_losses_mingpt,
+            train_steps_mingpt,
+            best_val_loss=best_val_loss,
+            current_val_loss=vloss,
+            k_keep=3
+        )
+
+trainer.set_callback('on_step_end', batch_end_callback_step)
 
 last_ckpt_gpt = get_last_checkpoint(checkpoint_dir_gpt)
 if last_ckpt_gpt:
-    load_checkpoint(trainer, last_ckpt_gpt, device)
+    trainer, train_losses_mingpt, train_steps_mingpt = load_checkpoint(trainer, last_ckpt_gpt, device)
+
 
 trainer.run()
+
+# free up memory before starting minGPT_tce
+del trainer, model
+torch.cuda.empty_cache()
 
 # create a GPT instance
 model_config_tce = GPT_tce.get_default_config()
 model_config_tce.model_type = model_type
-model_config_tce.vocab_size = tokenizer.vocab_size
+model_config_tce.vocab_size = vocab_size
 model_config_tce.block_size = block_size
 model_tce = GPT_tce(model_config_tce)
 
@@ -287,48 +323,62 @@ train_config.gradient_accumulation_steps = gradient_accumulation_steps
 trainer_tce = Trainer(train_config, model_tce, train_dataset)
 
 train_losses_mingpt_tce = []
+train_steps_mingpt_tce = []
+checkpoint_dir_gpt_tce = "checkpoints/minGPT_tce"
+os.makedirs(checkpoint_dir_gpt_tce, exist_ok=True)
+best_val_loss_tce = None
 
-def batch_end_callback_tce(trainer):
-    log_interval_updates = 100
-    val_interval_updates = 1000
+def batch_end_callback_step_tce(trainer):
+    global best_val_loss_tce
 
-    log_interval = log_interval_updates * trainer.config.gradient_accumulation_steps
-    val_interval = val_interval_updates * trainer.config.gradient_accumulation_steps
+    # intervals measured in EFFECTIVE STEPS (updates)
+    log_interval_steps = 25
+    val_interval_steps = 250
 
-    if (trainer.iter_num + 1) % trainer.config.gradient_accumulation_steps == 0:
-        if trainer.iter_num % log_interval == 0:
-            train_loss = trainer.loss.item()
-            train_losses_mingpt_tce.append(train_loss)
-            perplexity = math.exp(train_loss) if train_loss < 20 else float('inf')
-            print(f"iter_dt {trainer.iter_dt * 1000:.2f}ms; iter {trainer.iter_num}: train loss {train_loss:.5f}, perplexity {perplexity:.2f}")
-        if trainer.iter_num > 0 and trainer.iter_num % val_interval == 0:
-            # val_loss and val_perplexity
-            val_loss, val_ppl = evaluate(trainer.model, val_loader_small)
-            print("-"*100)
-            print(f"[Validation, minGPT_tce] iter {trainer.iter_num}: loss {val_loss:.5f}, perplexity {val_ppl:.2f}")
-            # generate text
-            prompt = 'Artificial intelligence in modern age'
-            samples = generate_with_model(trainer.model, tokenizer, prompt, steps=50, num_samples=1)
-            print(f"[Text generation, minGPT_tce] iter {trainer.iter_num}, prompt: {prompt}")
-            print('Generation:\n', samples[0])
-            print("-"*100)
-            # Save checkpoint
-            save_checkpoint(trainer, checkpoint_dir_gpt_tce, k_keep=3)
+    # LOG
+    if trainer.step_num % log_interval_steps == 0:
+        tr_loss = float(trainer.loss.item())
+        ppl = math.exp(trainer.loss.item()) if tr_loss < 20 else float('inf')
+        print(f"[minGPT_tce] step {trainer.step_num} | micro_iter {trainer.iter_num} | "
+              f"train loss {tr_loss:.5f} | ppl {ppl:.2f} | dt {trainer.iter_dt*1000:.2f}ms")
+        train_losses_mingpt_tce.append(tr_loss)
+        train_steps_mingpt_tce.append(trainer.step_num)
 
-trainer_tce.set_callback('on_batch_end', batch_end_callback_tce)
+    # VALID + CKPT + (optional) generation
+    if trainer.step_num > 0 and trainer.step_num % val_interval_steps == 0:
+        vloss, vppl = evaluate(trainer.model, val_loader_small)
+        print("-" * 100)
+        print(f"[Validation, minGPT_tce] step {trainer.step_num}: loss {vloss:.5f}, ppl {vppl:.2f}")
+        # Short sample generation (optional)
+        prompt = 'Artificial intelligence in modern age'
+        sample = generate_with_model(trainer.model, tokenizer, prompt, steps=50, num_samples=1)[0]
+        print(f"[Text generation, minGPT_tce] step {trainer.step_num} | prompt: {prompt}\n{sample}")
+        print("-" * 100)
+        best_val_loss_tce = save_checkpoint(
+            trainer,
+            checkpoint_dir_gpt_tce,
+            train_losses_mingpt_tce,
+            train_steps_mingpt_tce,
+            best_val_loss=best_val_loss_tce,
+            current_val_loss=vloss,
+            k_keep=3
+        )
 
-last_ckpt_tce = get_last_checkpoint(checkpoint_dir_gpt_tce)
-if last_ckpt_tce:
-    load_checkpoint(trainer_tce, last_ckpt_tce, device)
+
+trainer_tce.set_callback('on_step_end', batch_end_callback_step_tce)
+
+last_ckpt_gpt_tce = get_last_checkpoint(checkpoint_dir_gpt_tce)
+if last_ckpt_gpt_tce:
+    trainer_tce, train_losses_mingpt_tce, train_steps_mingpt_tce = load_checkpoint(trainer_tce, last_ckpt_gpt_tce, device)
 
 trainer_tce.run()
 
 plt.figure(figsize=(10,6))
-plt.plot(train_losses_mingpt, label="minGPT")
-plt.plot(train_losses_mingpt_tce, label="minGPT_tce")
-plt.xlabel("Checkpoint (every 100 iterations)")
+plt.plot(train_steps_mingpt,      train_losses_mingpt,      label="minGPT")
+plt.plot(train_steps_mingpt_tce,  train_losses_mingpt_tce,  label="minGPT_tce")
+plt.xlabel("Optimizer step")
 plt.ylabel("Training loss")
-plt.title("Training loss evolution")
+plt.title("Training loss vs optimizer step")
 plt.legend()
 plt.grid(True)
 plt.show()
