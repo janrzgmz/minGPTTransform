@@ -32,12 +32,12 @@ torch.use_deterministic_algorithms(True)
 model_type = 'gpt2-medium' # 345M parameters
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
-block_size = 1024
-learning_rate = 3e-4
+block_size = 512
+learning_rate = 3e-5
 max_iters = 40000
-batch_size = 1
+batch_size = 2
 num_workers = 0
-gradient_accumulation_steps = 4
+gradient_accumulation_steps = 8
 
 pretrained_model = GPT.from_pretrained(model_type)
 pretrained_model.to(device)
@@ -162,17 +162,13 @@ def generate_with_model(model, tokenizer, prompt, steps=50, num_samples=1):
     if was_training:
         model.train()
     return outputs
-
+""""
 # Load checkpoints
 def parse_step_from_ckpt(path):
-    """Extract the step number from a checkpoint filename like ckpt_step123.pt"""
     match = re.search(r"ckpt_step(\d+)\.pt", os.path.basename(path))
     return int(match.group(1)) if match else -1
 
 def save_checkpoint(trainer, ckpt_dir, train_losses, train_steps, best_val_loss=None, current_val_loss=None, k_keep=3):
-    """Save a checkpoint with model/optimizer/config + training history.
-       Keeps the last k_keep checkpoints, and optionally updates best_model.pt.
-    """
     os.makedirs(ckpt_dir, exist_ok=True)
     step_num = trainer.step_num
     ckpt_path = os.path.join(ckpt_dir, f"ckpt_step{step_num}.pt")
@@ -208,7 +204,6 @@ def save_checkpoint(trainer, ckpt_dir, train_losses, train_steps, best_val_loss=
     return best_val_loss
 
 def get_last_checkpoint(ckpt_dir):
-    """Returns the most recent checkpoint within a directory."""
     ckpts = glob.glob(os.path.join(ckpt_dir, "ckpt_step*.pt"))
     if not ckpts:
         return None
@@ -216,7 +211,6 @@ def get_last_checkpoint(ckpt_dir):
     return ckpts_sorted[-1]
 
 def load_checkpoint(trainer, checkpoint_path, device):
-    """Load a checkpoint and restore model, optimizer, step/iter counters, and training history if available."""
     checkpoint = torch.load(checkpoint_path, map_location=device)
 
     trainer.model.load_state_dict(checkpoint['model_state_dict'])
@@ -231,7 +225,7 @@ def load_checkpoint(trainer, checkpoint_path, device):
 
     print(f"[Checkpoint] Loaded from {checkpoint_path}, step {trainer.step_num}, iter {trainer.iter_num}")
     return trainer, train_losses, train_steps
-
+"""
 
 # create a GPT instance
 model_config = GPT.get_default_config()
@@ -247,21 +241,24 @@ train_config.max_iters = max_iters
 train_config.batch_size = batch_size
 train_config.num_workers = num_workers
 train_config.gradient_accumulation_steps = gradient_accumulation_steps
+train_config.betas = (0.9, 0.95)
+train_config.weight_decay = 0.1
+train_config.grad_norm_clip = 1.0
 
 trainer = Trainer(train_config, model, train_dataset)
 
 train_losses_mingpt = []
 train_steps_mingpt = []
-checkpoint_dir_gpt = "checkpoints/minGPT"
-os.makedirs(checkpoint_dir_gpt, exist_ok=True)
+# checkpoint_dir_gpt = "checkpoints/minGPT"
+# os.makedirs(checkpoint_dir_gpt, exist_ok=True)
 best_val_loss = None
 
 def batch_end_callback_step(trainer):
     global best_val_loss
 
     # intervals measured in EFFECTIVE STEPS (updates)
-    log_interval_steps = 25
-    val_interval_steps = 250
+    log_interval_steps = 100
+    val_interval_steps = 1000
 
     # LOG
     if trainer.step_num % log_interval_steps == 0:
@@ -282,6 +279,7 @@ def batch_end_callback_step(trainer):
         sample = generate_with_model(trainer.model, tokenizer, prompt, steps=50, num_samples=1)[0]
         print(f"[Text generation, minGPT] step {trainer.step_num} | prompt: {prompt}\n{sample}")
         print("-" * 100)
+        """
         best_val_loss = save_checkpoint(
             trainer,
             checkpoint_dir_gpt,
@@ -291,13 +289,13 @@ def batch_end_callback_step(trainer):
             current_val_loss=vloss,
             k_keep=3
         )
-
+        """
 trainer.set_callback('on_step_end', batch_end_callback_step)
-
+"""
 last_ckpt_gpt = get_last_checkpoint(checkpoint_dir_gpt)
 if last_ckpt_gpt:
     trainer, train_losses_mingpt, train_steps_mingpt = load_checkpoint(trainer, last_ckpt_gpt, device)
-
+"""
 
 trainer.run()
 
@@ -319,21 +317,24 @@ train_config.max_iters = max_iters
 train_config.batch_size = batch_size
 train_config.num_workers = num_workers
 train_config.gradient_accumulation_steps = gradient_accumulation_steps
+train_config.betas = (0.9, 0.95)
+train_config.weight_decay = 0.1
+train_config.grad_norm_clip = 1.0
 
 trainer_tce = Trainer(train_config, model_tce, train_dataset)
 
 train_losses_mingpt_tce = []
 train_steps_mingpt_tce = []
-checkpoint_dir_gpt_tce = "checkpoints/minGPT_tce"
-os.makedirs(checkpoint_dir_gpt_tce, exist_ok=True)
+#checkpoint_dir_gpt_tce = "checkpoints/minGPT_tce"
+#os.makedirs(checkpoint_dir_gpt_tce, exist_ok=True)
 best_val_loss_tce = None
 
 def batch_end_callback_step_tce(trainer):
     global best_val_loss_tce
 
     # intervals measured in EFFECTIVE STEPS (updates)
-    log_interval_steps = 25
-    val_interval_steps = 250
+    log_interval_steps = 100
+    val_interval_steps = 1000
 
     # LOG
     if trainer.step_num % log_interval_steps == 0:
@@ -354,6 +355,7 @@ def batch_end_callback_step_tce(trainer):
         sample = generate_with_model(trainer.model, tokenizer, prompt, steps=50, num_samples=1)[0]
         print(f"[Text generation, minGPT_tce] step {trainer.step_num} | prompt: {prompt}\n{sample}")
         print("-" * 100)
+        """
         best_val_loss_tce = save_checkpoint(
             trainer,
             checkpoint_dir_gpt_tce,
@@ -363,14 +365,15 @@ def batch_end_callback_step_tce(trainer):
             current_val_loss=vloss,
             k_keep=3
         )
+        """
 
 
 trainer_tce.set_callback('on_step_end', batch_end_callback_step_tce)
-
+"""
 last_ckpt_gpt_tce = get_last_checkpoint(checkpoint_dir_gpt_tce)
 if last_ckpt_gpt_tce:
     trainer_tce, train_losses_mingpt_tce, train_steps_mingpt_tce = load_checkpoint(trainer_tce, last_ckpt_gpt_tce, device)
-
+"""
 trainer_tce.run()
 
 plt.figure(figsize=(10,6))
@@ -381,4 +384,5 @@ plt.ylabel("Training loss")
 plt.title("Training loss vs optimizer step")
 plt.legend()
 plt.grid(True)
-plt.show()
+plt.savefig("training_loss.png")
+plt.close()

@@ -27,7 +27,7 @@ class Trainer:
         C.betas = (0.9, 0.95)
         C.weight_decay = 0.1 # only applied on matmul weights
         C.grad_norm_clip = 1.0
-        C.gradient_accumulation_steps = 1
+        # C.gradient_accumulation_steps = 1
         return C
 
     def __init__(self, config, model, train_dataset):

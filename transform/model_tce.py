@@ -26,21 +26,27 @@ class NewGELU(nn.Module):
     def forward(self, x):
         return 0.5 * x * (1.0 + torch.tanh(math.sqrt(2.0 / math.pi) * (x + 0.044715 * torch.pow(x, 3.0))))
 
-def special_conformal_transform(x: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
-    """
-    x: tensor of shape (b, t, n_embd)
-    b: vector of shape (n_embd,)
-    """
-    b = b.view(1, 1, -1)  # (1, 1, n_embd) para broadcasting
+import torch
+import torch.nn.functional as F
 
-    x_squared = (x * x).sum(dim=-1, keepdim=True)         # (b, t, 1)
-    b_dot_x = (b * x).sum(dim=-1, keepdim=True)           # (b, t, 1)
-    b_squared = (b * b).sum(dim=-1, keepdim=True)         # (1, 1, 1)
+def special_conformal_transform(x: torch.Tensor, b: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:
+    x32 = x.float()
+    b32 = b.float().view(1, 1, -1)
 
-    numerator = x - b * x_squared                         # (b, t, n_embd)
-    denominator = 1 - 2 * b_dot_x + b_squared * x_squared # (b, t, 1)
+    x_sq = (x32 * x32).sum(dim=-1, keepdim=True)          # (B, T, 1)
+    b_dot_x = (b32 * x32).sum(dim=-1, keepdim=True)       # (B, T, 1)
+    b_sq = (b32 * b32).sum().view(1, 1, 1)                # scale → broadcast
 
-    return numerator / denominator
+    numerator = x32 - b32 * x_sq
+
+    raw_den = 1.0 - 2.0 * b_dot_x + b_sq * x_sq
+    denominator = F.softplus(raw_den) + eps
+
+    y = numerator / denominator
+
+    return y.to(x.dtype)
+
+
 
 def generate_b(seed: int, n_embd: int):
     torch.manual_seed(seed)
@@ -163,7 +169,7 @@ class GPT(nn.Module):
             }[config.model_type])
 
         b_key = generate_b(42, config.n_embd)
-        # b_key = b_key / b_key.norm() * 0.1
+        b_key = b_key / b_key.norm() * 0.1
         self.register_buffer("conformal_b", b_key)
 
         self.transformer = nn.ModuleDict(dict(
