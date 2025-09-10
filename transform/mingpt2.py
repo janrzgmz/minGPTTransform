@@ -366,6 +366,7 @@ torch.save({
 }, final_ckpt_path_tce)
 print(f"[Checkpoint] Final minGPT_tce model saved at {final_ckpt_path_tce}")
 
+"""
 plt.figure(figsize=(10,6))
 plt.plot(train_steps_mingpt,      train_losses_mingpt,      label="minGPT")
 plt.plot(train_steps_mingpt_tce,  train_losses_mingpt_tce,  label="minGPT_tce")
@@ -376,6 +377,7 @@ plt.legend()
 plt.grid(True)
 plt.savefig("training_loss.png")
 plt.close()
+"""
 
 def compare_tce(prompt='', steps=20, b_seed=None, num_samples=1):
     tokenizer = GPT2Tokenizer.from_pretrained(model_type)
