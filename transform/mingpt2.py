@@ -303,7 +303,7 @@ torch.save({
     'train_losses': train_losses_mingpt,
     'train_steps': train_steps_mingpt,
 }, final_ckpt_path)
-print(f"[Checkpoint] Final minGPT model saved at {final_ckpt_path}"))
+print(f"[Checkpoint] Final minGPT model saved at {final_ckpt_path}")
 
 # free up memory before starting minGPT_tce
 del trainer, model
