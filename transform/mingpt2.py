@@ -162,7 +162,7 @@ def generate_with_model(model, tokenizer, prompt, steps=50, num_samples=1):
     if was_training:
         model.train()
     return outputs
-""""
+
 # Load checkpoints
 def parse_step_from_ckpt(path):
     match = re.search(r"ckpt_step(\d+)\.pt", os.path.basename(path))
@@ -225,7 +225,7 @@ def load_checkpoint(trainer, checkpoint_path, device):
 
     print(f"[Checkpoint] Loaded from {checkpoint_path}, step {trainer.step_num}, iter {trainer.iter_num}")
     return trainer, train_losses, train_steps
-"""
+
 
 # create a GPT instance
 model_config = GPT.get_default_config()
@@ -279,7 +279,7 @@ def batch_end_callback_step(trainer):
         sample = generate_with_model(trainer.model, tokenizer, prompt, steps=50, num_samples=1)[0]
         print(f"[Text generation, minGPT] step {trainer.step_num} | prompt: {prompt}\n{sample}")
         print("-" * 100)
-        """
+        
         best_val_loss = save_checkpoint(
             trainer,
             checkpoint_dir_gpt,
@@ -289,13 +289,13 @@ def batch_end_callback_step(trainer):
             current_val_loss=vloss,
             k_keep=3
         )
-        """
+        
 trainer.set_callback('on_step_end', batch_end_callback_step)
-"""
+
 last_ckpt_gpt = get_last_checkpoint(checkpoint_dir_gpt)
 if last_ckpt_gpt:
     trainer, train_losses_mingpt, train_steps_mingpt = load_checkpoint(trainer, last_ckpt_gpt, device)
-"""
+
 
 trainer.run()
 
@@ -355,7 +355,7 @@ def batch_end_callback_step_tce(trainer):
         sample = generate_with_model(trainer.model, tokenizer, prompt, steps=50, num_samples=1)[0]
         print(f"[Text generation, minGPT_tce] step {trainer.step_num} | prompt: {prompt}\n{sample}")
         print("-" * 100)
-        """
+        
         best_val_loss_tce = save_checkpoint(
             trainer,
             checkpoint_dir_gpt_tce,
@@ -365,15 +365,13 @@ def batch_end_callback_step_tce(trainer):
             current_val_loss=vloss,
             k_keep=3
         )
-        """
-
 
 trainer_tce.set_callback('on_step_end', batch_end_callback_step_tce)
-"""
+
 last_ckpt_gpt_tce = get_last_checkpoint(checkpoint_dir_gpt_tce)
 if last_ckpt_gpt_tce:
     trainer_tce, train_losses_mingpt_tce, train_steps_mingpt_tce = load_checkpoint(trainer_tce, last_ckpt_gpt_tce, device)
-"""
+
 trainer_tce.run()
 
 plt.figure(figsize=(10,6))
