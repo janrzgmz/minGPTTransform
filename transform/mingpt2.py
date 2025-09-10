@@ -21,6 +21,7 @@ import matplotlib.pyplot as plt
 import random
 import glob
 import re
+from copy import deepcopy
 
 # Seeds & Hyperparameters
 set_seed(3407)
@@ -163,6 +164,28 @@ def generate_with_model(model, tokenizer, prompt, steps=50, num_samples=1):
         model.train()
     return outputs
 
+# Save checkpoint
+def _to_serializable_config(cfg):
+    # Intenta convertir a dict; si no, devuelve None para omitirlo
+    if cfg is None:
+        return None
+    if isinstance(cfg, dict):
+        return deepcopy(cfg)
+    # objetos tipo SimpleNamespace / dataclass / configs con __dict__
+    if hasattr(cfg, "__dict__"):
+        return deepcopy(cfg.__dict__)
+    # algunos configs de minGPT tienen método get_default_config() → dict-like
+    if hasattr(cfg, "to_dict"):
+        return deepcopy(cfg.to_dict())
+    return None  # evita pickle de objetos raros
+
+def safe_torch_save(payload, path):
+    ckpt_dir = os.path.dirname(path)
+    if ckpt_dir and not os.path.exists(ckpt_dir):
+        os.makedirs(ckpt_dir, exist_ok=True)
+    # opcional: compatibilidad antigua
+    torch.save(payload, path)
+
 """
 # Load checkpoints
 def parse_step_from_ckpt(path):
@@ -284,15 +307,16 @@ trainer.set_callback('on_step_end', batch_end_callback_step)
 trainer.run()
 
 final_ckpt_path = "checkpoints/minGPT_final.pt"
-torch.save({
-    'config': trainer.config,
+payload = {
+    'config': _to_serializable_config(trainer.config),
     'step_num': trainer.step_num,
     'iter_num': trainer.iter_num,
     'model_state_dict': trainer.model.state_dict(),
     'optimizer_state_dict': trainer.optimizer.state_dict(),
     'train_losses': train_losses_mingpt,
     'train_steps': train_steps_mingpt,
-}, final_ckpt_path)
+}
+safe_torch_save(payload, final_ckpt_path)
 print(f"[Checkpoint] Final minGPT model saved at {final_ckpt_path}")
 
 # free up memory before starting minGPT_tce
@@ -355,18 +379,19 @@ trainer_tce.set_callback('on_step_end', batch_end_callback_step_tce)
 trainer_tce.run()
 
 final_ckpt_path_tce = "checkpoints/minGPT_tce_final.pt"
-torch.save({
-    'config': trainer_tce.config,
+payload_tce = {
+    'config': _to_serializable_config(trainer_tce.config),
     'step_num': trainer_tce.step_num,
     'iter_num': trainer_tce.iter_num,
     'model_state_dict': trainer_tce.model.state_dict(),
     'optimizer_state_dict': trainer_tce.optimizer.state_dict(),
     'train_losses': train_losses_mingpt_tce,
     'train_steps': train_steps_mingpt_tce,
-}, final_ckpt_path_tce)
+}
+safe_torch_save(payload_tce, final_ckpt_path_tce)
 print(f"[Checkpoint] Final minGPT_tce model saved at {final_ckpt_path_tce}")
 
-"""
+
 plt.figure(figsize=(10,6))
 plt.plot(train_steps_mingpt,      train_losses_mingpt,      label="minGPT")
 plt.plot(train_steps_mingpt_tce,  train_losses_mingpt_tce,  label="minGPT_tce")
@@ -377,7 +402,7 @@ plt.legend()
 plt.grid(True)
 plt.savefig("training_loss.png")
 plt.close()
-"""
+
 
 def compare_tce(prompt='', steps=20, b_seed=None, num_samples=1):
     tokenizer = GPT2Tokenizer.from_pretrained(model_type)
