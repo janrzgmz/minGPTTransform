@@ -249,8 +249,8 @@ trainer = Trainer(train_config, model, train_dataset)
 
 train_losses_mingpt = []
 train_steps_mingpt = []
-# checkpoint_dir_gpt = "checkpoints/minGPT"
-# os.makedirs(checkpoint_dir_gpt, exist_ok=True)
+checkpoint_dir_gpt = "checkpoints/minGPT"
+os.makedirs(checkpoint_dir_gpt, exist_ok=True)
 best_val_loss = None
 
 def batch_end_callback_step(trainer):
