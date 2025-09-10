@@ -250,10 +250,10 @@ trainer = Trainer(train_config, model, train_dataset)
 
 train_losses_mingpt = []
 train_steps_mingpt = [] 
-best_val_loss = None
+# best_val_loss = None
 
 def batch_end_callback_step(trainer):
-    global best_val_loss
+    # global best_val_loss
 
     # intervals measured in EFFECTIVE STEPS (updates)
     log_interval_steps = 100
@@ -278,16 +278,6 @@ def batch_end_callback_step(trainer):
         sample = generate_with_model(trainer.model, tokenizer, prompt, steps=50, num_samples=1)[0]
         print(f"[Text generation, minGPT] step {trainer.step_num} | prompt: {prompt}\n{sample}")
         print("-" * 100)
-        
-        best_val_loss = save_checkpoint(
-            trainer,
-            checkpoint_dir_gpt,
-            train_losses_mingpt,
-            train_steps_mingpt,
-            best_val_loss=best_val_loss,
-            current_val_loss=vloss,
-            k_keep=3
-        )
         
 trainer.set_callback('on_step_end', batch_end_callback_step)
 
@@ -331,10 +321,10 @@ trainer_tce = Trainer(train_config, model_tce, train_dataset)
 
 train_losses_mingpt_tce = []
 train_steps_mingpt_tce = []
-best_val_loss_tce = None
+# best_val_loss_tce = None
 
 def batch_end_callback_step_tce(trainer):
-    global best_val_loss_tce
+    # global best_val_loss_tce
 
     # intervals measured in EFFECTIVE STEPS (updates)
     log_interval_steps = 100
@@ -359,16 +349,6 @@ def batch_end_callback_step_tce(trainer):
         sample = generate_with_model(trainer.model, tokenizer, prompt, steps=50, num_samples=1)[0]
         print(f"[Text generation, minGPT_tce] step {trainer.step_num} | prompt: {prompt}\n{sample}")
         print("-" * 100)
-        
-        best_val_loss_tce = save_checkpoint(
-            trainer,
-            checkpoint_dir_gpt_tce,
-            train_losses_mingpt_tce,
-            train_steps_mingpt_tce,
-            best_val_loss=best_val_loss_tce,
-            current_val_loss=vloss,
-            k_keep=3
-        )
 
 trainer_tce.set_callback('on_step_end', batch_end_callback_step_tce)
 
