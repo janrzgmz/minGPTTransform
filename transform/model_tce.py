@@ -51,7 +51,7 @@ def special_conformal_transform(x: torch.Tensor, b: torch.Tensor, eps: float = 1
 def generate_b(seed: int, n_embd: int, low: float = -10.0, high: float = 10.0):
     torch.manual_seed(seed)
     b = torch.rand(n_embd) * (high - low) + low
-    b = b * 0.1
+    b = b / b.norm() * 0.1
     return b
 
 class CausalSelfAttention(nn.Module):
