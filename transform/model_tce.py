@@ -48,9 +48,10 @@ def special_conformal_transform(x: torch.Tensor, b: torch.Tensor, eps: float = 1
 
 
 
-def generate_b(seed: int, n_embd: int):
+def generate_b(seed: int, n_embd: int, low: float = -10.0, high: float = 10.0):
     torch.manual_seed(seed)
-    b = torch.randn(n_embd)
+    b = torch.rand(n_embd) * (high - low) + low
+    b = b * 0.1
     return b
 
 class CausalSelfAttention(nn.Module):
@@ -169,7 +170,6 @@ class GPT(nn.Module):
             }[config.model_type])
 
         b_key = generate_b(42, config.n_embd)
-        b_key = b_key / b_key.norm() * 0.1
         self.register_buffer("conformal_b", b_key)
 
         self.transformer = nn.ModuleDict(dict(
