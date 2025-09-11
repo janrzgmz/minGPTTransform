@@ -340,11 +340,11 @@ class GPT(nn.Module):
             tok_emb = self.transformer.wte(idx_cond) # token embeddings of shape (b, t, n_embd)
             pos_emb = self.transformer.wpe(pos) # position embeddings of shape (1, t, n_embd)
             x = tok_emb + pos_emb
-            x = special_conformal_transform(x, self.conformal_b)
+            x = special_conformal_transform(x, new_b)
             x = self.transformer.drop(x)
             for block in self.transformer.h:
                 x = block(x)
-            x = special_conformal_transform(x, -self.conformal_b)
+            x = special_conformal_transform(x, -new_b)
             x = self.transformer.ln_f(x)
             logits = self.lm_head(x)
             
