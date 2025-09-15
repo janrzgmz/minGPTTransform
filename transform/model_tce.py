@@ -46,13 +46,22 @@ def special_conformal_transform(x: torch.Tensor, b: torch.Tensor, eps: float = 1
 
     return y.to(x.dtype)
 
-
-
 def generate_b(seed: int, n_embd: int, low: float = -10.0, high: float = 10.0):
     torch.manual_seed(seed)
     b = torch.rand(n_embd) * (high - low) + low
     b = b / b.norm() * 0.1
     return b
+
+def generate_b_orthogonal(b: torch.Tensor, seed: int = None) -> torch.Tensor:
+    if seed is not None:
+        torch.manual_seed(seed)
+    rand_vec = torch.randn_like(b)
+    # Quitar la proyección sobre b
+    proj = (rand_vec @ b) / (b @ b) * b
+    ortho = rand_vec - proj
+    # Normalizar y escalar como en generate_b
+    ortho = ortho / ortho.norm() * 0.1
+    return ortho
 
 class CausalSelfAttention(nn.Module):
     """
@@ -313,19 +322,22 @@ class GPT(nn.Module):
         return logits, loss
 
     @torch.no_grad()
-    def generate(self, idx, max_new_tokens, temperature=1.0, do_sample=False, top_k=None, b_seed: int = None):
+    def generate(self, idx, max_new_tokens, temperature=1.0, do_sample=False, top_k=None, b_seed: int = None, b_mode: str = "default"):
         """
         Take a conditioning sequence of indices idx (LongTensor of shape (b,t)) and complete
         the sequence max_new_tokens times, feeding the predictions back into the model each time.
         Most likely you'll want to make sure to be in model.eval() mode of operation for this.
         """
-        # decide which one to use
-        if b_seed is not None:
-            # generate a new b with the given seed
-            new_b = generate_b(b_seed, self.transformer.wte.embedding_dim).to(idx.device)
-        else:
-            # use the default registered buffer
+        
+        if b_mode == "default":
             new_b = self.conformal_b
+        elif b_mode == "seed":
+            new_b = generate_b(b_seed, self.transformer.wte.embedding_dim).to(idx.device)
+        elif b_mode == "orthogonal":
+            base_b = self.conformal_b if b_seed is None else generate_b(b_seed, self.transformer.wte.embedding_dim).to(idx.device)
+            new_b = generate_b_orthogonal(base_b).to(idx.device)
+        else:
+            raise ValueError(f"Unknown b_mode: {b_mode}")
 
         for _ in range(max_new_tokens):
             # if the sequence context is growing too long we must crop it at block_size
