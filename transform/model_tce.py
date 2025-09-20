@@ -40,9 +40,9 @@ def special_conformal_transform(x: torch.Tensor, b: torch.Tensor, eps: float = 1
     numerator = x32 - b32 * x_sq
 
     raw_den = 1.0 - 2.0 * b_dot_x + b_sq * x_sq
-    denominator = F.softplus(raw_den) + eps
+    # denominator = F.softplus(raw_den) + eps
 
-    y = numerator / denominator
+    y = numerator / raw_den
 
     return y.to(x.dtype)
 
