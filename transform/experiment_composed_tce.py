@@ -266,7 +266,8 @@ if __name__ == "__main__":
     print("Composed:", tokenizer.decode(yc[0].cpu().squeeze()))
 
     # Save results to file
-    with open("results_composed.txt", "w") as f:
+    results_path = os.path.join(ckpt_dir, "results_composed.txt")
+    with open(results_path, "w") as f:
         f.write("Evaluation Results\n")
         f.write(f"T1 (b=42):     loss={loss1:.4f}, ppl={ppl1:.2f}\n")
         f.write(f"T2 (b=2100):   loss={loss2:.4f}, ppl={ppl2:.2f}\n")
