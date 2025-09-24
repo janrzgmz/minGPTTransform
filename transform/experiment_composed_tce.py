@@ -195,8 +195,7 @@ def evaluate(model, loader):
 # ------------------------------------------------------------------
 # Train function
 # ------------------------------------------------------------------
-def train_tce(b_seed, ckpt_path):
-    from copy import deepcopy
+def train_tce(b_tensor, ckpt_path):
     model_config = GPT_tce.get_default_config()
     model_config.model_type = model_type
     model_config.vocab_size = vocab_size
@@ -204,7 +203,7 @@ def train_tce(b_seed, ckpt_path):
 
     model = GPT_tce(model_config).to(device)
     # override conformal_b with seed
-    model.conformal_b = generate_b(b_seed, model_config.n_embd).to(device)
+    model.conformal_b = b_tensor.to(device)
 
     train_config = Trainer.get_default_config()
     train_config.learning_rate = learning_rate
@@ -219,13 +218,7 @@ def train_tce(b_seed, ckpt_path):
     trainer = Trainer(train_config, model, train_dataset)
     trainer.run()
 
-    payload = {
-        "config": deepcopy(trainer.config),
-        "model_state_dict": trainer.model.state_dict(),
-        "step_num": trainer.step_num
-    }
-    os.makedirs(os.path.dirname(ckpt_path), exist_ok=True)
-    torch.save(payload, ckpt_path)
+    torch.save(model.state_dict(), ckpt_path)
     return model
 
 # ------------------------------------------------------------------
@@ -234,45 +227,69 @@ def train_tce(b_seed, ckpt_path):
 if __name__ == "__main__":
     # Train T1 and T2
     ckpt_dir = "/home/jan/gptTransform/minGPTTransform/savedModel"
-    ckpt_T1 = os.path.join(ckpt_dir, "T1_b42.pt")
-    ckpt_T2 = os.path.join(ckpt_dir, "T2_b2100.pt")
+    os.makedirs(ckpt_dir, exist_ok=True)
 
-    T1 = train_tce(42, ckpt_T1)
-    T2 = train_tce(2100, ckpt_T2)
+    # Prepare b vectors
+    b42 = generate_b(42, 1024)
+    b2100 = generate_b(2100, 1024)
+    bsum = (b42 + b2100) / (b42 + b2100).norm() * 0.1
 
-    # Evaluate T1 and T2
+    # Train models
+    T1 = train_tce(b42, os.path.join(ckpt_dir, "T1_b42.pt"))
+    T2 = train_tce(b2100, os.path.join(ckpt_dir, "T2_b2100.pt"))
+    T3 = train_tce(bsum, os.path.join(ckpt_dir, "T3_bsum.pt"))
+
+    # Evaluate
     loss1, ppl1 = evaluate(T1, val_loader)
     loss2, ppl2 = evaluate(T2, val_loader)
+    loss3, ppl3 = evaluate(T3, val_loader)
 
     # Build composed model
     combo = ComposedTCE(T1, T2).to(device)
     lossC, pplC = evaluate(combo, val_loader)
 
-    # Generation example
+    # Generation test
     prompt = "Artificial intelligence in modern age"
     x0 = tokenizer(prompt, return_tensors="pt").to(device)["input_ids"]
-    y1 = T1.generate(x0, max_new_tokens=30, do_sample=True, top_k=40)
-    y2 = T2.generate(x0, max_new_tokens=30, do_sample=True, top_k=40)
-    yc = combo.generate(x0, max_new_tokens=30, do_sample=True, top_k=40)
 
     print("\n=== Evaluation Results ===")
     print(f"T1 (b=42):     loss={loss1:.4f}, ppl={ppl1:.2f}")
     print(f"T2 (b=2100):   loss={loss2:.4f}, ppl={ppl2:.2f}")
+    print(f"T3 (b sum):    loss={loss3:.4f}, ppl={ppl3:.2f}")
     print(f"Composed:      loss={lossC:.4f}, ppl={pplC:.2f}")
 
     print("\n=== Sample Generations ===")
-    print("T1:", tokenizer.decode(y1[0].cpu().squeeze()))
-    print("T2:", tokenizer.decode(y2[0].cpu().squeeze()))
-    print("Composed:", tokenizer.decode(yc[0].cpu().squeeze()))
+    generations = {"T1": [], "T2": [], "T3": [], "Composed": []}
+    for i in range(10):
+        print(f"\n--- Sample {i+1} ---")
+        g1 = tokenizer.decode(T1.generate(x0, max_new_tokens=30, do_sample=True, top_k=40)[0].cpu().squeeze())
+        g2 = tokenizer.decode(T2.generate(x0, max_new_tokens=30, do_sample=True, top_k=40)[0].cpu().squeeze())
+        g3 = tokenizer.decode(T3.generate(x0, max_new_tokens=30, do_sample=True, top_k=40)[0].cpu().squeeze())
+        gc = tokenizer.decode(combo.generate(x0, max_new_tokens=30, do_sample=True, top_k=40)[0].cpu().squeeze())
+        generations["T1"].append(g1)
+        generations["T2"].append(g2)
+        generations["T3"].append(g3)
+        generations["Composed"].append(gc)
+        print("T1:", g1)
+        print("T2:", g2)
+        print("T3:", g3)
+        print("Composed:", gc)
 
     # Save results to file
     results_path = os.path.join(ckpt_dir, "results_composed.txt")
     with open(results_path, "w") as f:
-        f.write("Evaluation Results\n")
+        f.write("=== Evaluation Results ===\n")
         f.write(f"T1 (b=42):     loss={loss1:.4f}, ppl={ppl1:.2f}\n")
         f.write(f"T2 (b=2100):   loss={loss2:.4f}, ppl={ppl2:.2f}\n")
+        f.write(f"T3 (b sum):    loss={loss3:.4f}, ppl={ppl3:.2f}\n")
         f.write(f"Composed:      loss={lossC:.4f}, ppl={pplC:.2f}\n\n")
+
         f.write("=== Sample Generations ===\n")
-        f.write("T1:\n" + tokenizer.decode(y1[0].cpu().squeeze()) + "\n\n")
-        f.write("T2:\n" + tokenizer.decode(y2[0].cpu().squeeze()) + "\n\n")
-        f.write("Composed:\n" + tokenizer.decode(yc[0].cpu().squeeze()) + "\n\n")
+        for i in range(10):
+            f.write(f"\n--- Sample {i+1} ---\n")
+            f.write("T1:\n" + generations["T1"][i] + "\n\n")
+            f.write("T2:\n" + generations["T2"][i] + "\n\n")
+            f.write("T3:\n" + generations["T3"][i] + "\n\n")
+            f.write("Composed:\n" + generations["Composed"][i] + "\n\n")
+
+    print(f"\n[Results saved at {results_path}]")
