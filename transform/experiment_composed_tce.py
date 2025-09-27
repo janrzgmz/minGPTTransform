@@ -116,6 +116,75 @@ class ComposedTCE(nn.Module):
             idx = torch.cat((idx, idx_next), dim=1)
         return idx
 
+class ComposedTCE_Reverse(nn.Module):
+    """
+    Composite model: simulates f_{b1+b2}(x0) using two trained TCE models.
+    """
+    def __init__(self, T1, T2):
+        super().__init__()
+        self.T1 = T1
+        self.T2 = T2
+
+        assert T1.block_size == T2.block_size
+        assert T1.transformer.wte.embedding_dim == T2.transformer.wte.embedding_dim
+        assert T1.lm_head.out_features == T2.lm_head.out_features
+
+        self.block_size = T1.block_size
+        self.vocab_size = T1.lm_head.out_features
+        self.n_embd = T1.transformer.wte.embedding_dim
+
+    def forward(self, idx, targets=None):
+        device = idx.device
+        B, T = idx.size()
+        assert T <= self.block_size, f"Cannot forward sequence of length {T}, block size is only {self.block_size}"
+        pos = torch.arange(0, T, dtype=torch.long, device=device).unsqueeze(0)
+
+        # embeddings
+        tok_emb = self.T1.transformer.wte(idx)
+        pos_emb = self.T1.transformer.wpe(pos)
+        x = tok_emb + pos_emb
+
+        # forward through f_b1, f_b2
+        x = special_conformal_transform(x, self.T1.conformal_b)
+        x = special_conformal_transform(x, self.T2.conformal_b)
+
+        # blocks of T2
+        for block in self.T2.transformer.h:
+            x = block(x)
+        # blocks of T1
+        for block in self.T1.transformer.h:
+            x = block(x)
+
+        # inverse transforms
+        x = special_conformal_transform(x, -self.T2.conformal_b)
+        x = special_conformal_transform(x, -self.T1.conformal_b)
+
+        # final projection (we use T1 head here)
+        x = self.T1.transformer.ln_f(x)
+        logits = self.T1.lm_head(x)
+
+        loss = None
+        if targets is not None:
+            loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1)
+        return logits, loss
+
+    @torch.no_grad()
+    def generate(self, idx, max_new_tokens, temperature=1.0, do_sample=False, top_k=None):
+        self.eval()
+        for _ in range(max_new_tokens):
+            idx_cond = idx if idx.size(1) <= self.block_size else idx[:, -self.block_size:]
+            logits, _ = self.forward(idx_cond)
+            logits = logits[:, -1, :] / temperature
+            if top_k is not None:
+                v, _ = torch.topk(logits, top_k)
+                logits[logits < v[:, [-1]]] = -float("inf")
+            probs = F.softmax(logits, dim=-1)
+            if do_sample:
+                idx_next = torch.multinomial(probs, num_samples=1)
+            else:
+                _, idx_next = torch.topk(probs, k=1, dim=-1)
+            idx = torch.cat((idx, idx_next), dim=1)
+        return idx
 
 # ------------------------------------------------------------------
 # Dataset preparation
@@ -169,6 +238,11 @@ class wikiDataset(Dataset):
 
 train_dataset = wikiDataset(lm_train)
 val_dataset = wikiDataset(lm_val)
+
+#Save datasets
+torch.save(train_dataset, "/home/jan/gptTransform/minGPTTransform/savedModel/train_dataset.pt")
+torch.save(val_dataset,   "/home/jan/gptTransform/minGPTTransform/savedModel/val_dataset.pt")
+print("Datasets saved in savedModel/")
 
 rng = random.Random(3407) 
 indices = rng.sample(range(len(val_dataset)), 2000)
@@ -248,6 +322,10 @@ if __name__ == "__main__":
     combo = ComposedTCE(T1, T2).to(device)
     lossC, pplC = evaluate(combo, val_loader)
 
+    # Build composed model_reverse
+    combo_rev = ComposedTCE_Reverse(T1, T2).to(device)
+    lossR, pplR = evaluate(combo_rev, val_loader)
+
     # Generation test
     prompt = "Artificial intelligence in modern age"
     x0 = tokenizer(prompt, return_tensors="pt").to(device)["input_ids"]
@@ -257,23 +335,27 @@ if __name__ == "__main__":
     print(f"T2 (b=2100):   loss={loss2:.4f}, ppl={ppl2:.2f}")
     print(f"T3 (b sum):    loss={loss3:.4f}, ppl={ppl3:.2f}")
     print(f"Composed:      loss={lossC:.4f}, ppl={pplC:.2f}")
+    print(f"Composed_reverse:      loss={lossR:.4f}, ppl={pplR:.2f}")
 
     print("\n=== Sample Generations ===")
-    generations = {"T1": [], "T2": [], "T3": [], "Composed": []}
+    generations = {"T1": [], "T2": [], "T3": [], "Composed": [], "Composed_reverse": []}
     for i in range(10):
         print(f"\n--- Sample {i+1} ---")
         g1 = tokenizer.decode(T1.generate(x0, max_new_tokens=30, do_sample=True, top_k=40)[0].cpu().squeeze())
         g2 = tokenizer.decode(T2.generate(x0, max_new_tokens=30, do_sample=True, top_k=40)[0].cpu().squeeze())
         g3 = tokenizer.decode(T3.generate(x0, max_new_tokens=30, do_sample=True, top_k=40)[0].cpu().squeeze())
         gc = tokenizer.decode(combo.generate(x0, max_new_tokens=30, do_sample=True, top_k=40)[0].cpu().squeeze())
+        gr = tokenizer.decode(combo_rev.generate(x0, max_new_tokens=30, do_sample=True, top_k=40)[0].cpu().squeeze())
         generations["T1"].append(g1)
         generations["T2"].append(g2)
         generations["T3"].append(g3)
         generations["Composed"].append(gc)
+        generations["Composed_reverse"].append(gr)
         print("T1:", g1)
         print("T2:", g2)
         print("T3:", g3)
         print("Composed:", gc)
+        print("Composed_reverse:", gr)
 
     # Save results to file
     results_path = os.path.join(ckpt_dir, "results_composed.txt")
@@ -282,7 +364,8 @@ if __name__ == "__main__":
         f.write(f"T1 (b=42):     loss={loss1:.4f}, ppl={ppl1:.2f}\n")
         f.write(f"T2 (b=2100):   loss={loss2:.4f}, ppl={ppl2:.2f}\n")
         f.write(f"T3 (b sum):    loss={loss3:.4f}, ppl={ppl3:.2f}\n")
-        f.write(f"Composed:      loss={lossC:.4f}, ppl={pplC:.2f}\n\n")
+        f.write(f"Composed:      loss={lossC:.4f}, ppl={pplC:.2f}\n")
+        f.write(f"Composed_reverse:      loss={lossR:.4f}, ppl={pplR:.2f}\n\n")
 
         f.write("=== Sample Generations ===\n")
         for i in range(10):
@@ -291,5 +374,58 @@ if __name__ == "__main__":
             f.write("T2:\n" + generations["T2"][i] + "\n\n")
             f.write("T3:\n" + generations["T3"][i] + "\n\n")
             f.write("Composed:\n" + generations["Composed"][i] + "\n\n")
+            f.write("Composed_reverse:\n" + generations["Composed_reverse"][i] + "\n\n")
 
     print(f"\n[Results saved at {results_path}]")
+
+
+print("\n=== Comparación T3 vs combinaciones de T1 y T2 ===")
+
+sd1 = T1.state_dict()
+sd2 = T2.state_dict()
+sd3 = T3.state_dict()
+
+for name in sd1.keys():
+    W1 = sd1[name]
+    W2 = sd2[name]
+    W3 = sd3[name]
+
+    comp12, comp21 = None, None
+
+    if W1.ndim >= 2 and W2.ndim >= 2:
+        # Try W1@W2
+        try:
+            comp12 = W1 @ W2
+        except RuntimeError:
+            try:
+                comp12 = W1 @ W2.T
+            except RuntimeError:
+                pass
+        # Try W2@W1
+        try:
+            comp21 = W2 @ W1
+        except RuntimeError:
+            try:
+                comp21 = W2 @ W1.T
+            except RuntimeError:
+                pass
+    else:
+        # Fallback: addition for biases or 1D
+        comp12 = W1 + W2
+        comp21 = W2 + W1
+
+    # Compare
+    if comp12 is not None:
+        close12 = torch.allclose(W3, comp12, atol=1e-3, rtol=1e-3)
+        diff12 = torch.norm(W3 - comp12).item()
+    else:
+        close12, diff12 = False, float("nan")
+
+    if comp21 is not None:
+        close21 = torch.allclose(W3, comp21, atol=1e-3, rtol=1e-3)
+        diff21 = torch.norm(W3 - comp21).item()
+    else:
+        close21, diff21 = False, float("nan")
+
+    print(f"{name:50s} | W1∘W2 close:{close12} diff:{diff12:.4e} | "
+          f"W2∘W1 close:{close21} diff:{diff21:.4e}")

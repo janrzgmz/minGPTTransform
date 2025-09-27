@@ -1,0 +1,195 @@
+number of parameters: 354.82M
+⚠️ Warning: transformer.h.0.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.1.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.2.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.3.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.4.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.5.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.6.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.7.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.8.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.9.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.10.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.11.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.12.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.13.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.14.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.15.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.16.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.17.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.18.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.19.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.20.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.21.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.22.attn.bias not in HF checkpoint, skipping
+⚠️ Warning: transformer.h.23.attn.bias not in HF checkpoint, skipping
+number of parameters: 354.30M
+running on device cuda
+number of parameters: 354.30M
+running on device cuda
+number of parameters: 354.30M
+running on device cuda
+
+=== Evaluation Results ===
+T1 (b=42):     loss=5.0492, ppl=155.90
+T2 (b=2100):   loss=5.0518, ppl=156.30
+T3 (b sum):    loss=5.0490, ppl=155.86
+Composed:      loss=9.0490, ppl=8509.68
+
+=== Sample Generations ===
+
+--- Sample 1 ---
+T1: Artificial intelligence in modern age. The term "the only known and not a good of those who, they do all the great, they were an independent. From about to do
+T2: Artificial intelligence in modern age. She and her death was buried at the age of 80, she married and joined the American Civil War, and had been the first lieutenant to take
+T3: Artificial intelligence in modern age in a small and non-elected college student. In the summer of 2017 and 2017 a member of the party's nomination from the United States International Board
+Composed: Artificial intelligence in modern age. (
+  (,,,  and-, as
+
+    ( (-
+ 
+  and  
+ 
+
+--- Sample 2 ---
+T1: Artificial intelligence in modern age, which he had a much of $50 million for the age of 26 and was $25,000 and $25 million to be elected for the
+T2: Artificial intelligence in modern age and education. The state will be a state that might be used for the following of the period.
+
+History
+In February 2023, K
+T3: Artificial intelligence in modern age for the state of 2011.
+
+History 
+The area of the area was developed for a population of 45,000 people per cent of over
+Composed: Artificial intelligence in modern age.
+  of the. in, to, in, to,,, in, in  to  in in a,, in and to
+
+--- Sample 3 ---
+T1: Artificial intelligence in modern age, although it was a few years.
+
+In 2003, the first generation of the school was renamed "Staudelland for the same time
+T2: Artificial intelligence in modern age until it had an important name of local government and in the late 1900s, and its construction came under the local government. In the 1950s,
+T3: Artificial intelligence in modern age with the entire age of 1809. The town was part of the town's most prominent town that is of the province which are listed for several cities
+Composed: Artificial intelligence in modern age, to the.
+
+
+
+
+
+
+ –
+
+
+
+
+
+
+
+
+
+
+
+. 
+ (. and
+
+--- Sample 4 ---
+T1: Artificial intelligence in modern age that, the state was "pricin" and then used to support him from the case in a group of the Prime Minister's Court "S
+T2: Artificial intelligence in modern age. An estimated 20%, with a year of 40,000 people present, while the total number of children's people were all wounded. In order to
+T3: Artificial intelligence in modern age.
+
+In 2002, in the United States, she had moved to New York City and studied at age 50 under the university of 26 of 5
+Composed: Artificial intelligence in modern age in the (C, in the for and, to, for in and. 
+
+
+
+
+
+ 
+ 
+ 
+ 
+
+--- Sample 5 ---
+T1: Artificial intelligence in modern age, and, and in fact, these is still being known as .
+
+References 
+
+The state of India
+History of France
+Prot
+T2: Artificial intelligence in modern age, they were in the family of the province of China, near the southeast of San Diego River in the east, where the name was a result of
+T3: Artificial intelligence in modern age or in 2010, but the United States Department, a former military general candidate for a total of 16 years when his uncle was arrested as a majority of
+Composed: Artificial intelligence in modern age.   in his, for a.,, the and in "i and  a to. (i, and in in--
+
+
+--- Sample 6 ---
+T1: Artificial intelligence in modern age of 646, and it has one year-of-known and the first half of the country's most important role in the field of the top
+T2: Artificial intelligence in modern age, the U.S.S. Army Department of Law and Trade (Carmel) and the US State Department of Women in 2003 and the
+T3: Artificial intelligence in modern age, and the U.S. Navy. In 2006, the U.S. Army was part of the U.S.S. Air Force
+Composed: Artificial intelligence in modern age and in the. (., on,  and, in that to D, in  of   and in the, the,. with
+
+--- Sample 7 ---
+T1: Artificial intelligence in modern age and an "the largest number of time" of his own law will "unced by the law of the Soviet general that can change the British of
+T2: Artificial intelligence in modern age with the age of 34.7% in the population. The population density was . There were 98.3% African American, 0.1%
+T3: Artificial intelligence in modern age. The population is 1,6,939.1% African American, 0.2% White, 0.5% White, 0.
+Composed: Artificial intelligence in modern age.
+, for,, 
+, "
+. (
+
+ (
+
+
+ B, and 
+ and.-s in:
+
+--- Sample 8 ---
+T1: Artificial intelligence in modern age of 5.5 hp (3:4–6 k.5 km). It has a total amount of 11.3 k
+T2: Artificial intelligence in modern age 16. Most of these were being a result of both of the two age. In July 12, 1364, he received a special meeting on the
+T3: Artificial intelligence in modern age, and he was born in July 21.
+
+After graduating with his father, he joined the United States Army Air Force Command in November 2005 with
+Composed: Artificial intelligence in modern age and at the of, and (C
+
+S-
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ (
+
+
+--- Sample 9 ---
+T1: Artificial intelligence in modern age, in his home with three years of seven or more than  when he wanted to move for an important part in the country. He lost their son
+T2: Artificial intelligence in modern age and political affairs. The term "the result of social policy and political" are based on the use of power through more than two different places.
+
+T3: Artificial intelligence in modern age. In the time of 11 days after the general, he suffered a major period of vote in the next 19th century. The same day, they
+Composed: Artificial intelligence in modern age.
+  to to. and, in, and in the,, to in,, in his to.
+
+
+A ( ,
+
+--- Sample 10 ---
+T1: Artificial intelligence in modern age.
+
+As a result of World War II, the Royal Navy in 1916 and in 1917, the German Army's Royal War in the Italian invasion
+T2: Artificial intelligence in modern age. On November 17, 2019, he retired his office as a member of the Senate. Later, he was appointed to a seat from the Federal Government
+T3: Artificial intelligence in modern age.
+
+Aftermath
+
+As an early, he studied the position of his family of the Catholic Society, he had a long term. He
+Composed: Artificial intelligence in modern age, with for, as by a,, with in:,.   (a, in (i,, for, in the, of
+
+[Results saved at /home/jan/gptTransform/minGPTTransform/savedModel/results_composed.txt]
